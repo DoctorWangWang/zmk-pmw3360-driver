@@ -743,6 +743,20 @@ static int pmw3360_report_data(const struct device *dev) {
     return err;
 }
 
+static void pmw3360_poll_callback(struct k_timer *timer) {
+    struct pixart_data *data = CONTAINER_OF(timer, struct pixart_data, poll_timer);
+    const struct device *dev = data->dev;
+
+    pmw3360_report_data(dev);
+
+    data->poll_count++;
+    if (data->poll_count >= CONFIG_PMW3360_POLL_COUNT) {
+        k_timer_stop(&data->poll_timer);
+        data->poll_count = 0;
+        set_interrupt(dev, true);
+    }
+}
+
 static void pmw3360_gpio_callback(const struct device *gpiob, struct gpio_callback *cb,
                                   uint32_t pins) {
 //    LOG_INF("In pwm3360_gpio_callback");
@@ -751,8 +765,10 @@ static void pmw3360_gpio_callback(const struct device *gpiob, struct gpio_callba
 
     set_interrupt(dev, false);
 
-    // submit the real handler work
-    k_work_submit(&data->trigger_work);
+    // motion 中断后启动定时轮询：固定节奏读传感器、平滑分发 delta，
+    // 避免单次累积成"突跳"
+    data->poll_count = 0;
+    k_timer_start(&data->poll_timer, K_NO_WAIT, K_MSEC(CONFIG_PMW3360_POLL_INTERVAL_MS));
 }
 
 static void pmw3360_work_callback(struct k_work *work) {
@@ -899,6 +915,9 @@ static int pmw3360_init(const struct device *dev) {
 
     // init trigger handler work
     k_work_init(&data->trigger_work, pmw3360_work_callback);
+
+    // init polling timer（motion 中断后固定节奏读传感器）
+    k_timer_init(&data->poll_timer, pmw3360_poll_callback, NULL);
 
     // check readiness of spi bus
 //    if (!device_is_ready(&config->cs_gpio.port)) {

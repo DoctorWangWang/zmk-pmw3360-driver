@@ -83,6 +83,25 @@ config PMW3360_REST2_DOWNSHIFT_TIME_MS
 	  Default REST2 mode downshift down time in milliseconds.
 	  Time after which sensor goes from REST2 to REST3 mode.
 
+config PMW3360_POLL_INTERVAL_MS
+	int "Poll interval after motion interrupt (ms)"
+	default 8
+	range 1 100
+	help
+	  After a motion interrupt, keep reading the sensor at this fixed
+	  interval and report each delta, instead of a single burst read.
+	  A fixed cadence keeps deltas small and even, avoiding the
+	  accumulate-then-jump behaviour over BLE.
+
+config PMW3360_POLL_COUNT
+	int "Number of polls after motion interrupt"
+	default 40
+	range 1 255
+	help
+	  How many times to poll before re-arming the motion interrupt.
+	  POLL_INTERVAL_MS x POLL_COUNT = the polling window after each
+	  motion event.
+
 choice
 	prompt "Select PMW3360 sensor orientation"
 	default PMW3360_ORIENTATION_0

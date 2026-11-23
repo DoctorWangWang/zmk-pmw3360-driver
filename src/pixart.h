@@ -37,6 +37,10 @@ struct pixart_data {
     // the work structure holding the trigger job
     struct k_work trigger_work;
 
+    // 定时轮询：motion 中断后按固定节奏读传感器，避免 delta 累积成突跳
+    struct k_timer poll_timer;
+    int poll_count;
+
     // the work structure for delayable init steps
     struct k_work_delayable init_work;
     int async_init_step;
