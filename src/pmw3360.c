@@ -576,6 +576,27 @@ static int set_cpi_if_needed(const struct device *dev, uint32_t cpi) {
     return 0;
 }
 
+/* 快甩放大：慢速增量 1:1 保持微调精度，超过阈值部分按 Q4.4 增益放大。
+ * 对称处理正负方向；结果钳位到 int16 防止溢出。 */
+static int16_t pmw3360_accel(int16_t v) {
+    if (v == 0) {
+        return 0;
+    }
+
+    int32_t av = (v < 0) ? -(int32_t)v : (int32_t)v;
+    if (av <= CONFIG_PMW3360_ACCEL_THRESHOLD) {
+        return v;
+    }
+
+    int32_t over = av - CONFIG_PMW3360_ACCEL_THRESHOLD;
+    int32_t scaled = CONFIG_PMW3360_ACCEL_THRESHOLD + (over * CONFIG_PMW3360_ACCEL_GAIN) / 16;
+    if (scaled > 32767) {
+        scaled = 32767;
+    }
+
+    return (v < 0) ? (int16_t)-scaled : (int16_t)scaled;
+}
+
 static int pmw3360_report_data(const struct device *dev) {
 //    LOG_INF("In pwm3360_report_data");
     struct pixart_data *data = dev->data;
@@ -655,6 +676,12 @@ static int pmw3360_report_data(const struct device *dev) {
 
     if (IS_ENABLED(CONFIG_PMW3360_INVERT_Y)) {
         y = -y;
+    }
+
+    /* 快甩放大：只在 MOVE 模式生效，慢速微调 1:1、快速甩动放大 */
+    if (input_mode == MOVE) {
+        x = pmw3360_accel(x);
+        y = pmw3360_accel(y);
     }
 
 //#ifdef CONFIG_PMW3610_SMART_ALGORITHM

@@ -27,6 +27,23 @@ config PMW3360_CPI_DIVIDOR
 	help
 	  Default CPI dividor value.
 
+config PMW3360_ACCEL_THRESHOLD
+	int "PMW3360 acceleration threshold (|delta| <= this stays 1:1)"
+	default 4
+	range 1 64
+	help
+	  Acceleration threshold. Motion deltas at or below this absolute
+	  value pass through unchanged, keeping fine control precise.
+
+config PMW3360_ACCEL_GAIN
+	int "PMW3360 acceleration gain (Q4.4: 16=1x, 24=1.5x, 32=2x)"
+	default 24
+	range 16 64
+	help
+	  Acceleration gain applied to the portion of a delta above the
+	  threshold, in Q4.4 fixed point. 16 = linear, 24 = 1.5x, 32 = 2x.
+	  Larger values make fast flicks travel further.
+
 config PMW3360_SNIPE_CPI
     int "PMW3360's CPI in snipe mode"
     default 200
